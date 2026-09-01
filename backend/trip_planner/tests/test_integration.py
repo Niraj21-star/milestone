@@ -50,11 +50,21 @@ UTC = timezone.utc
 
 
 def _geo_response(lat: float = 41.0, lon: float = -87.0, label: str = "Test City") -> MagicMock:
-    """Mock Nominatim forward geocoding response."""
+    """Mock Google Geocoding forward geocoding response."""
     resp = MagicMock()
     resp.status_code = 200
     resp.raise_for_status.return_value = None
-    resp.json.return_value = [{"lat": str(lat), "lon": str(lon), "display_name": label}]
+    resp.json.return_value = {
+        "status": "OK",
+        "results": [
+            {
+                "formatted_address": label,
+                "geometry": {
+                    "location": {"lat": lat, "lng": lon}
+                }
+            }
+        ]
+    }
     return resp
 
 
@@ -81,13 +91,16 @@ def _rev_geo_response(label: str = "Somewhere, TX") -> MagicMock:
     resp = MagicMock()
     resp.status_code = 200
     resp.raise_for_status.return_value = None
-    resp.json.return_value = {"display_name": label}
+    resp.json.return_value = {
+        "status": "OK",
+        "results": [{"formatted_address": label}]
+    }
     return resp
 
 
 def _mock_requests_get(url, **kwargs):
     """Side effect for requests.get to route to the correct mock based on URL."""
-    if "nominatim" in url:
+    if "googleapis" in url or "nominatim" in url or "geocode" in url:
         return _geo_response()
     if "project-osrm" in url:
         return _osrm_response()

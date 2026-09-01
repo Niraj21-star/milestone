@@ -71,9 +71,13 @@ class TestGeocodingSuccess:
     @patch("trip_planner.services.geocoding.requests.get")
     @patch("trip_planner.services.geocoding._throttle")
     def test_returns_location(self, mock_throttle, mock_get):
-        mock_get.return_value = _make_response([
-            {"lat": "41.8781", "lon": "-87.6298", "display_name": "Chicago, IL"}
-        ])
+        mock_get.return_value = _make_response({
+            "status": "OK",
+            "results": [{
+                "formatted_address": "Chicago, IL",
+                "geometry": {"location": {"lat": 41.8781, "lng": -87.6298}}
+            }]
+        })
         loc = geocode("Chicago, IL")
         assert loc.lat == pytest.approx(41.8781)
         assert loc.lon == pytest.approx(-87.6298)
@@ -83,9 +87,13 @@ class TestGeocodingSuccess:
     @patch("trip_planner.services.geocoding.requests.get")
     @patch("trip_planner.services.geocoding._throttle")
     def test_field_stored(self, mock_throttle, mock_get):
-        mock_get.return_value = _make_response([
-            {"lat": "39.7684", "lon": "-86.1581", "display_name": "Indianapolis, IN"}
-        ])
+        mock_get.return_value = _make_response({
+            "status": "OK",
+            "results": [{
+                "formatted_address": "Indianapolis, IN",
+                "geometry": {"location": {"lat": 39.7684, "lng": -86.1581}}
+            }]
+        })
         loc = geocode("Indianapolis, IN", field="pickup_location")
         assert loc.source == "geocoded"
 
@@ -96,7 +104,7 @@ class TestGeocodingNoResult:
     @patch("trip_planner.services.geocoding.requests.get")
     @patch("trip_planner.services.geocoding._throttle")
     def test_raises_no_result(self, mock_throttle, mock_get):
-        mock_get.return_value = _make_response([])
+        mock_get.return_value = _make_response({"status": "ZERO_RESULTS", "results": []})
         with pytest.raises(GeocodingError) as exc_info:
             geocode("ZZZ_nonexistent_place_XYZ")
         assert exc_info.value.code == "GEOCODING_NO_RESULT"
@@ -104,7 +112,7 @@ class TestGeocodingNoResult:
     @patch("trip_planner.services.geocoding.requests.get")
     @patch("trip_planner.services.geocoding._throttle")
     def test_error_message_contains_input(self, mock_throttle, mock_get):
-        mock_get.return_value = _make_response([])
+        mock_get.return_value = _make_response({"status": "ZERO_RESULTS", "results": []})
         with pytest.raises(GeocodingError) as exc_info:
             geocode("BadCity, ZZ")
         assert "BadCity, ZZ" in exc_info.value.message
@@ -159,8 +167,8 @@ class TestGeocodeMalformed:
     @patch("trip_planner.services.geocoding.requests.get")
     @patch("trip_planner.services.geocoding._throttle")
     def test_missing_lat_raises(self, mock_throttle, mock_get):
-        # Response is a list but lat/lon missing
-        mock_get.return_value = _make_response([{"display_name": "Somewhere"}])
+        # Response missing geometry/lat
+        mock_get.return_value = _make_response({"status": "OK", "results": [{"formatted_address": "Somewhere"}]})
         with pytest.raises(GeocodingError) as exc_info:
             geocode("Chicago, IL")
         assert exc_info.value.code == "GEOCODING_MALFORMED"
@@ -168,7 +176,10 @@ class TestGeocodeMalformed:
     @patch("trip_planner.services.geocoding.requests.get")
     @patch("trip_planner.services.geocoding._throttle")
     def test_non_numeric_lat_raises(self, mock_throttle, mock_get):
-        mock_get.return_value = _make_response([{"lat": "not_a_number", "lon": "0.0"}])
+        mock_get.return_value = _make_response({
+            "status": "OK",
+            "results": [{"geometry": {"location": {"lat": "not_a_number", "lng": 0.0}}}]
+        })
         with pytest.raises(GeocodingError) as exc_info:
             geocode("Chicago, IL")
         assert exc_info.value.code == "GEOCODING_MALFORMED"
@@ -180,9 +191,13 @@ class TestGeocodeLocations:
     @patch("trip_planner.services.geocoding.requests.get")
     @patch("trip_planner.services.geocoding._throttle")
     def test_returns_three_locations(self, mock_throttle, mock_get):
-        mock_get.return_value = _make_response([
-            {"lat": "41.0", "lon": "-87.0", "display_name": "A"}
-        ])
+        mock_get.return_value = _make_response({
+            "status": "OK",
+            "results": [{
+                "formatted_address": "A",
+                "geometry": {"location": {"lat": 41.0, "lng": -87.0}}
+            }]
+        })
         cur, pck, drp = geocode_locations("A", "B", "C")
         assert cur.source == pck.source == drp.source == "geocoded"
 
@@ -190,9 +205,13 @@ class TestGeocodeLocations:
     @patch("trip_planner.services.geocoding._throttle")
     def test_duplicate_input_cached(self, mock_throttle, mock_get):
         """Same location string → only one HTTP call."""
-        mock_get.return_value = _make_response([
-            {"lat": "41.0", "lon": "-87.0", "display_name": "Chicago"}
-        ])
+        mock_get.return_value = _make_response({
+            "status": "OK",
+            "results": [{
+                "formatted_address": "Chicago",
+                "geometry": {"location": {"lat": 41.0, "lng": -87.0}}
+            }]
+        })
         geocode_locations("Chicago", "Chicago", "Chicago")
         assert mock_get.call_count == 1  # cached
 
@@ -208,7 +227,8 @@ class TestReverseGeocodingSuccess:
     @patch("trip_planner.services.geocoding._throttle")
     def test_returns_label(self, mock_throttle, mock_get):
         mock_get.return_value = _make_response({
-            "display_name": "Amarillo, TX, USA"
+            "status": "OK",
+            "results": [{"formatted_address": "Amarillo, TX, USA"}]
         })
         label = reverse_geocode(35.22, -101.83)
         assert label == "Amarillo, TX, USA"
