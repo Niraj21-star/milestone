@@ -26,13 +26,25 @@ if not os.environ.get("DJANGO_SECRET_KEY"):
 SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
 
 # ALLOWED_HOSTS — set DJANGO_ALLOWED_HOSTS env var on the hosting platform.
-# Example: "milepost-api.onrender.com"
+# Render automatically injects RENDER_EXTERNAL_HOSTNAME into the environment.
 ALLOWED_HOSTS_ENV = os.environ.get("DJANGO_ALLOWED_HOSTS", "")
 ALLOWED_HOSTS = [h.strip() for h in ALLOWED_HOSTS_ENV.split(",") if h.strip()]
 
+render_hostname = os.environ.get("RENDER_EXTERNAL_HOSTNAME")
+if render_hostname and render_hostname not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(render_hostname)
+
+# Support Render internal health checks and subdomains on Render
+for host in [".onrender.com", "127.0.0.1", "localhost"]:
+    if host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(host)
+
 # ---------------------------------------------------------------------------
-# HTTPS / security headers
+# HTTPS / Reverse Proxy / security headers
 # ---------------------------------------------------------------------------
+
+# Tell Django to trust X-Forwarded-Proto header from Render's reverse proxy
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 SECURE_SSL_REDIRECT = True
 SESSION_COOKIE_SECURE = True
