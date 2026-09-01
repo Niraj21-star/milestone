@@ -204,6 +204,10 @@ class TripPlanResultSerializer(serializers.Serializer):
             TripEventSerializer(e).data for e in instance.stops
         ]
 
+        compliance_data = dict(instance.compliance) if isinstance(instance.compliance, dict) else {}
+        if "status" in compliance_data and "is_compliant" not in compliance_data:
+            compliance_data["is_compliant"] = compliance_data["status"] != "BLOCKED"
+
         return {
             "trip_start_time": instance.trip_start_time,
             "route":           instance.route,
@@ -211,7 +215,7 @@ class TripPlanResultSerializer(serializers.Serializer):
             "daily_logs":      daily_logs_data,
             "stops":           stops_data,
             "summary":         instance.summary,
-            "compliance":      instance.compliance,
+            "compliance":      compliance_data,
             "warnings":        instance.warnings,
             "errors":          instance.errors,
         }

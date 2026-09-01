@@ -39,7 +39,12 @@ from trip_planner.services.hos_engine import (
     make_test_request,
     plan_trip,
 )
-from trip_planner.services.trip_service import TripPlanResult, plan_trip_full
+from trip_planner.services.trip_service import (
+    TripPlanResult,
+    _build_stops,
+    _build_summary,
+    plan_trip_full,
+)
 from trip_planner.serializers import TripPlanResultSerializer
 
 # ---------------------------------------------------------------------------
@@ -666,6 +671,33 @@ class TestIntegrationEndToEnd:
 
         # Either COMPLIANT (warning) or BLOCKED — both are valid with 60h used
         assert result.compliance["status"] in ("COMPLIANT", "WARNING", "BLOCKED")
+
+    def test_mumbai_pune_sambhajinagar_compliance(self):
+        """Regression test: verify short trip returns COMPLIANT status and is_compliant=True."""
+        req = make_test_request(92.6, 147.8, 0.0)  # ~240 miles total
+        result = plan_trip(req)
+        logs = build_daily_logs(result.events, result.events[0].start_time)
+        stops = _build_stops(result.events)
+        summary = _build_summary(
+            {"total_distance_miles": 240.4, "legs": []},
+            result,
+            0.0
+        )
+        full_res = TripPlanResult(
+            trip_start_time=result.events[0].start_time.isoformat(),
+            route=None,
+            events=result.events,
+            daily_logs=logs,
+            stops=stops,
+            summary=summary,
+            compliance=result.compliance,
+            warnings=result.warnings,
+            errors=result.errors,
+        )
+        serializer = TripPlanResultSerializer(full_res)
+        data = serializer.data
+        assert data["compliance"]["status"] == "COMPLIANT"
+        assert data["compliance"]["is_compliant"] is True
 
 
 class TestHealthCheckEndpoint:
