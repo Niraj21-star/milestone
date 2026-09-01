@@ -4,26 +4,28 @@ import { CheckCircle, AlertTriangle, XCircle } from 'lucide-react';
 export default function ComplianceBanner({ compliance }) {
   if (!compliance) return null;
 
-  const { is_compliant, warning } = compliance;
+  const status = compliance.status || (compliance.is_compliant === false ? 'BLOCKED' : compliance.warning ? 'WARNING' : 'COMPLIANT');
+  const isBlocked = status === 'BLOCKED' || compliance.is_compliant === false;
+  const isWarning = status === 'WARNING' || (compliance.is_compliant && compliance.warning);
 
   let color = 'var(--color-compliant)';
   let bg = '#ecfdf5'; // light green
   let Icon = CheckCircle;
   let title = 'COMPLIANT';
-  let message = 'Compliant under modeled HOS assumptions.';
+  let message = compliance.message || 'Compliant under modeled HOS assumptions.';
 
-  if (!is_compliant) {
+  if (isBlocked) {
     color = 'var(--color-blocked)';
     bg = '#fef2f2'; // light red
     Icon = XCircle;
     title = 'TRIP BLOCKED';
-    message = warning || 'Trip cannot be completed under current HOS rules.';
-  } else if (warning) {
+    message = compliance.message || compliance.warning || 'Trip cannot be completed under current HOS rules.';
+  } else if (isWarning) {
     color = 'var(--color-accent)';
     bg = '#fffbeb'; // light amber
     Icon = AlertTriangle;
     title = 'WARNING';
-    message = warning;
+    message = compliance.message || compliance.warning || 'Warning: approaching HOS cycle limits.';
   }
 
   return (

@@ -17,7 +17,7 @@ export default function ResultsDashboard({ tripData }) {
       <StatsHeaderStrip summary={tripData.summary} stops={tripData.stops} />
       <ComplianceBanner compliance={tripData.compliance} />
       
-      {tripData.compliance?.is_compliant && (
+      {(tripData.compliance?.status !== 'BLOCKED' && tripData.compliance?.is_compliant !== false) && (
         <NextActionCard stops={tripData.stops} />
       )}
       
